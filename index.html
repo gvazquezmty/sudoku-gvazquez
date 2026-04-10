@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sudoku PRO</title>
+
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    color: white;
+
+    /* 👇 Fondo con tu imagen */
+    background: url('fondo.jpg') no-repeat center center fixed;
+    background-size: cover;
+  }
+
+  /* 👇 Capa oscura para que el sudoku se vea mejor */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: -1;
+  }
+
+  h1 { margin-top: 10px; }
+
+  #timer {
+    font-size: 20px;
+    margin: 10px;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: auto;
+    background: rgba(0,0,0,0.7);
+  }
+
+  td {
+    border: 1px solid #555;
+  }
+
+  input {
+    width: 45px;
+    height: 45px;
+    text-align: center;
+    font-size: 20px;
+    background: rgba(30,30,30,0.9);
+    color: white;
+    border: none;
+  }
+
+  input:focus {
+    outline: 2px solid #00bcd4;
+    background: #2a2a2a;
+  }
+
+  .fixed {
+    background: #333;
+    font-weight: bold;
+  }
+
+  .error {
+    background: #8b0000 !important;
+  }
+
+  .highlight {
+    background: #004d40 !important;
+  }
+
+  .bold-bottom {
+    border-bottom: 3px solid white;
+  }
+
+  .bold-right {
+    border-right: 3px solid white;
+  }
+
+  button {
+    margin: 10px;
+    padding: 10px 15px;
+    border: none;
+    background: #00bcd4;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #0097a7;
+  }
+</style>
+
+</head>
+<body>
+
+<h1>🧩 Sudoku Gerardo Vazquez</h1>
+
+
+<table id="board"></table>
+
+<div>
+  <button onclick="validate()">Validar</button>
+  <button onclick="solve()">Resolver</button>
+  <button onclick="resetGame()">Reiniciar</button>
+</div>
+
+<script>
+const initial = [
+  [5,3,0,0,7,0,0,0,0],
+  [6,0,0,1,9,5,0,0,0],
+  [0,9,8,0,0,0,0,6,0],
+  [8,0,0,0,6,0,0,0,3],
+  [4,0,0,8,0,3,0,0,1],
+  [7,0,0,0,2,0,0,0,6],
+  [0,6,0,0,0,0,2,8,0],
+  [0,0,0,4,1,9,0,0,5],
+  [0,0,0,0,8,0,0,7,9]
+];
+
+let timer = 0;
+setInterval(() => {
+  timer++;
+  let min = String(Math.floor(timer/60)).padStart(2,'0');
+  let sec = String(timer%60).padStart(2,'0');
+  document.getElementById("timer").innerText = `⏱️ ${min}:${sec}`;
+}, 1000);
+
+function createBoard() {
+  const table = document.getElementById("board");
+  table.innerHTML = "";
+
+  for (let i = 0; i < 9; i++) {
+    let row = document.createElement("tr");
+
+    for (let j = 0; j < 9; j++) {
+      let cell = document.createElement("td");
+      let input = document.createElement("input");
+
+      input.id = `${i}-${j}`;
+
+      if (initial[i][j] !== 0) {
+        input.value = initial[i][j];
+        input.disabled = true;
+        input.classList.add("fixed");
+      }
+
+      input.addEventListener("input", () => checkErrors());
+      input.addEventListener("focus", () => highlight(i,j));
+
+      if ((i+1)%3===0) cell.classList.add("bold-bottom");
+      if ((j+1)%3===0) cell.classList.add("bold-right");
+
+      cell.appendChild(input);
+      row.appendChild(cell);
+    }
+
+    table.appendChild(row);
+  }
+}
+
+function getBoard() {
+  let b = [];
+  for (let i=0;i<9;i++){
+    b[i]=[];
+    for (let j=0;j<9;j++){
+      let val = document.getElementById(`${i}-${j}`).value;
+      b[i][j]= val?parseInt(val):0;
+    }
+  }
+  return b;
+}
+
+function checkErrors() {
+  let b = getBoard();
+  document.querySelectorAll("input").forEach(i=>i.classList.remove("error"));
+
+  for (let i=0;i<9;i++){
+    let row={}, col={};
+    for (let j=0;j<9;j++){
+      let r=b[i][j], c=b[j][i];
+
+      if (r && row[r]) markError(i,j);
+      row[r]=true;
+
+      if (c && col[c]) markError(j,i);
+      col[c]=true;
+    }
+  }
+}
+
+function markError(i,j){
+  document.getElementById(`${i}-${j}`).classList.add("error");
+}
+
+function highlight(r,c){
+  document.querySelectorAll("input").forEach(i=>i.classList.remove("highlight"));
+  for (let i=0;i<9;i++){
+    document.getElementById(`${r}-${i}`).classList.add("highlight");
+    document.getElementById(`${i}-${c}`).classList.add("highlight");
+  }
+}
+
+function validate(){
+  checkErrors();
+  alert("Revisa casillas en rojo");
+}
+
+function solve(){
+  let b = getBoard();
+
+  function isValid(b,num,r,c){
+    for(let i=0;i<9;i++){
+      if(b[r][i]==num||b[i][c]==num) return false;
+    }
+    let br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+    for(let i=0;i<3;i++){
+      for(let j=0;j<3;j++){
+        if(b[br+i][bc+j]==num) return false;
+      }
+    }
+    return true;
+  }
+
+  function backtrack(){
+    for(let i=0;i<9;i++){
+      for(let j=0;j<9;j++){
+        if(b[i][j]==0){
+          for(let n=1;n<=9;n++){
+            if(isValid(b,n,i,j)){
+              b[i][j]=n;
+              if(backtrack()) return true;
+              b[i][j]=0;
+            }
+          }
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  backtrack();
+
+  for(let i=0;i<9;i++){
+    for(let j=0;j<9;j++){
+      document.getElementById(`${i}-${j}`).value=b[i][j];
+    }
+  }
+}
+
+function resetGame(){
+  timer = 0;
+  createBoard();
+}
+
+createBoard();
+</script>
+
+</body>
+</html>
